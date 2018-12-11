@@ -1,0 +1,8 @@
+{
+  "useTabs": false,
+  "printWidth": 80,
+  "parser": "babylon",
+  "bracketSpacing": true,
+  "singleQuote": true,
+  "tabWidth": 2
+}
