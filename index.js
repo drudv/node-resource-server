@@ -4,6 +4,7 @@ const uuidV4 = require('node-uuid');
 const app = express();
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const fetch = require('isomorphic-fetch');
 const Schema = mongoose.Schema;
 
 const MessageSchema = new Schema({
@@ -13,16 +14,33 @@ const MessageSchema = new Schema({
 });
 const Message = mongoose.model('message', MessageSchema);
 
+const generateUUID = () => {
+  const generatorURL = process.env.UUID_GENERATOR_URL;
+  if (!generatorURL) {
+    console.log('Use internal UUID generator');
+    return Promise.resolve(uuidV4());
+  }
+  console.log(`Use external UUID generator: ${generatorURL}`);
+  return fetch(generatorURL).then(res => res.text());
+};
+
 if (!process.env.MONGO_URL) {
   throw new Error('MONGO_URL environment variable is not set');
 }
 
-mongoose.connect(process.env.MONGO_URL);
+mongoose.connect(
+  process.env.MONGO_URL,
+  { useNewUrlParser: true }
+);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 var port = process.env.PORT || 8080;
+
+app.get('/uuid', (req, res) => {
+  res.type('text/plain').send(uuidV4());
+});
 
 app.get('/give-me-five', (req, res) => {
   Message.find({}, null, {
@@ -50,11 +68,14 @@ app.post('/save-me', (req, res) => {
     res.status(400).json({ error: 'Wrong Format' });
     return;
   }
-  Message.create({
-    uuid: uuid || uuidV4(),
-    message,
-    created: moment().toISOString()
-  })
+  generateUUID()
+    .then(uuid =>
+      Message.create({
+        uuid: uuid || uuidV4(),
+        message,
+        created: moment().toISOString()
+      })
+    )
     .then(({ uuid }) => {
       res.json({ uuid });
     })
